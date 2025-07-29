@@ -1,3 +1,44 @@
+# Standard dla Netlify Functions: Universal API Response & Error Handling
+
+Każda funkcja serwerowa (np. w Netlify Functions) powinna:
+
+- Zwracać odpowiedź w formacie uniwersalnego obiektu JSON:
+  ```typescript
+  {
+    status: number,           // HTTP status code
+    payload?: any,            // Response data (null for errors)
+    error?: {                 // Error object (null for success)
+      message: string,        // Human-readable error message
+      code: string | number,  // Error code identifier
+      details?: string        // Optional additional details
+    } | null,
+    metadata?: object         // Optional metadata object
+  }
+  ```
+- Obsługiwać błędy przez strukturalny obiekt error (message, code, details)
+- Używać helpera `apiResponse()` do generowania odpowiedzi
+- Przykład implementacji:
+  ```typescript
+  import type { Context } from '@netlify/functions'
+  import { apiResponse } from '../../types/ApiResponse.mts'
+
+  export default (req: Request, context: Context): Response => {
+    try {
+      const url = new URL(req.url)
+      const subject = url.searchParams.get('name') || 'World'
+      return apiResponse({ message: `Hello ${subject}` }, 200)
+    } catch (error) {
+      return apiResponse(null, 500, {
+        message: error instanceof Error ? error.message : String(error),
+        code: 'INTERNAL_ERROR',
+        details: error instanceof Error && error.stack ? error.stack : undefined
+      })
+    }
+  }
+  ```
+- Routing table/mapowanie akcji na handlery stosować tylko w funkcjach obsługujących wiele endpointów (np. API CRUD)
+
+**Ten wzorzec jest obowiązujący dla wszystkich funkcji serwerowych w projekcie.**
 ---
 applyTo: '**'
 ---

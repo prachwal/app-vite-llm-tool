@@ -1,0 +1,24 @@
+{
+    "extends": "./tsconfig.app.json",
+    "compilerOptions": {
+        "outDir": "./.netlify/functions",
+        "rootDir": "./netlify/functions",
+        "module": "ESNext",
+        "target": "ES2022",
+        "moduleResolution": "Node",
+        "esModuleInterop": true,
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "strict": true,
+        "skipLibCheck": true
+    },
+    "include": [
+        "netlify/functions/**/*.ts",
+        "netlify/functions/**/*.mts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "public"
+    ]
+}

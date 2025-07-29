@@ -21,7 +21,8 @@
     "@tailwindcss/vite": "^4.1.11",
     "@types/node": "^24.1.0",
     "preact": "^10.27.0",
-    "preact-iso": "^2.9.2"
+    "preact-iso": "^2.9.2",
+    "zod": "^4.0.13"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.0.1",

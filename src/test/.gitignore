@@ -1,0 +1,13 @@
+# Test artifacts
+*.log
+*.tmp
+test-results/
+coverage/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/settings.json
+.idea/
