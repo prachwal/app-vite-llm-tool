@@ -16,12 +16,16 @@ function getInitialMode(): ThemeMode {
 
 export function setThemeMode(mode: ThemeMode) {
     themeMode.value = mode;
-    if (typeof window !== 'undefined') localStorage.setItem('themeMode', mode);
+    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.setItem('themeMode', mode);
+    }
 }
 
 export const ThemeProvider: FC<PropsWithChildren> = ({ children }) => {
     useEffect(() => {
-        localStorage.setItem('themeMode', themeMode.value);
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('themeMode', themeMode.value);
+        }
     }, [themeMode.value]);
 
     // Jeśli 'system', wykryj preferencje systemowe
