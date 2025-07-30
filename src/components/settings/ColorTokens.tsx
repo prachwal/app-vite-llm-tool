@@ -1,4 +1,4 @@
-import { Box, Card, CardContent, Typography, Grid, Chip } from '@mui/material';
+import { Box, Card, CardContent, Typography, Chip } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import type { FC } from 'preact/compat';
 
@@ -88,25 +88,25 @@ export const ColorTokens: FC = () => {
                 Current theme color palette with Material-UI design tokens
             </Typography>
 
-            <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Box sx={{ flex: '1 1 300px' }}>
                     <Typography variant="subtitle1" gutterBottom>
                         Brand Colors
                     </Typography>
                     {colorTokens.slice(0, 6).map((token) => (
                         <ColorToken key={token.name} {...token} />
                     ))}
-                </Grid>
+                </Box>
 
-                <Grid item xs={12} md={6}>
+                <Box sx={{ flex: '1 1 300px' }}>
                     <Typography variant="subtitle1" gutterBottom>
                         System Colors
                     </Typography>
                     {colorTokens.slice(6).map((token) => (
                         <ColorToken key={token.name} {...token} />
                     ))}
-                </Grid>
-            </Grid>
+                </Box>
+            </Box>
         </Box>
     );
 };

@@ -6,6 +6,6 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [preact(), tailwindcss()],
   server: {
-    port: 8000,
+    port: 5173, // Default Vite port
   }
 })

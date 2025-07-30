@@ -18,3 +18,14 @@ publish = "dist"        # Folder with the static content for _redirect file
 framework = "vite"      # Framework used for the project
 targetPort = 5173       # Port that the dev server will be listening on
 autoLaunch = false      # Prevent auto-opening browser
+
+# Environment variables for development
+[context.dev.environment]
+HF_API_KEY = ""           # Hugging Face API Key
+OPENAI_API_KEY = ""       # OpenAI Direct API Key  
+COHERE_API_KEY = ""       # Cohere API Key
+NEON_DATABASE_URL = ""    # Neon PostgreSQL connection string
+DEFAULT_EMBEDDING_PROVIDER = "huggingface"  # Default provider: huggingface|openai|cohere
+VECTOR_CACHE_ENABLED = "true"               # Enable embedding cache
+MAX_CHUNK_SIZE = "1000"                     # Max tokens per chunk
+BATCH_SIZE = "10"                           # Batch processing size

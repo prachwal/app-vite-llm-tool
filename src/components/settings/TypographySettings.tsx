@@ -4,7 +4,6 @@ import {
     CardContent,
     Typography,
     Slider,
-    Grid,
     Chip,
     Stack
 } from '@mui/material';
@@ -42,9 +41,9 @@ export const TypographySettings: FC = () => {
                     Customize text size, line height and spacing scale
                 </Typography>
 
-                <Grid container spacing={3}>
+                <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                     {/* Font Size Control */}
-                    <Grid item xs={12} md={4}>
+                    <Box sx={{ flex: '1 1 250px' }}>
                         <Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="subtitle2">Font Size</Typography>
@@ -65,10 +64,10 @@ export const TypographySettings: FC = () => {
                                 valueLabelDisplay="auto"
                             />
                         </Box>
-                    </Grid>
+                    </Box>
 
                     {/* Line Height Control */}
-                    <Grid item xs={12} md={4}>
+                    <Box sx={{ flex: '1 1 250px' }}>
                         <Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="subtitle2">Line Height</Typography>
@@ -89,10 +88,10 @@ export const TypographySettings: FC = () => {
                                 valueLabelDisplay="auto"
                             />
                         </Box>
-                    </Grid>
+                    </Box>
 
                     {/* Spacing Scale Control */}
-                    <Grid item xs={12} md={4}>
+                    <Box sx={{ flex: '1 1 250px' }}>
                         <Box>
                             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
                                 <Typography variant="subtitle2">Spacing Scale</Typography>
@@ -113,8 +112,8 @@ export const TypographySettings: FC = () => {
                                 valueLabelDisplay="auto"
                             />
                         </Box>
-                    </Grid>
-                </Grid>
+                    </Box>
+                </Box>
 
                 {/* Live Preview */}
                 <Box sx={{ mt: 4, p: 3, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>

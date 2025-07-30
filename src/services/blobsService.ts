@@ -299,6 +299,56 @@ class BlobsApiService {
         const url = `${this.baseUrl}?${params.toString()}`;
         return this.getFullUrl(url);
     }
+
+    // List containers
+    async listContainers(): Promise<ApiResponse<string[]>> {
+        const params = new URLSearchParams({ action: 'LIST_CONTAINERS' });
+        const url = `${this.baseUrl}?${params.toString()}`;
+
+        return this.makeRequest(url, {
+            method: 'GET'
+        });
+    }
+
+    // Create container
+    async createContainer(containerName: string): Promise<ApiResponse<string>> {
+        const params = new URLSearchParams({
+            action: 'CREATE_CONTAINER',
+            container: containerName
+        });
+        const url = `${this.baseUrl}?${params.toString()}`;
+
+        return this.makeRequest(url, {
+            method: 'POST'
+        });
+    }
+
+    // Delete container
+    async deleteContainer(containerName: string): Promise<ApiResponse<string>> {
+        const params = new URLSearchParams({
+            action: 'DELETE_CONTAINER',
+            container: containerName
+        });
+        const url = `${this.baseUrl}?${params.toString()}`;
+
+        return this.makeRequest(url, {
+            method: 'DELETE'
+        });
+    }
+
+    // Upload blob
+    async uploadBlob(file: File, containerName: string): Promise<ApiResponse<string>> {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('action', 'UPLOAD');
+        formData.append('container', containerName);
+
+        return this.makeRequest(this.baseUrl, {
+            method: 'POST',
+            body: formData,
+            headers: {} // Let browser set Content-Type with boundary for FormData
+        });
+    }
 }
 
 // Export singleton instance

@@ -358,25 +358,25 @@ describe('Blobs Page Logic Tests', () => {
 
     describe('File Deletion Logic', () => {
         it('should delete single file', async () => {
-            mockBlobsApi.deleteBlob.mockResolvedValue(mockApiResponse('File deleted'));
+            mockBlobsApi.deleteBlob.mockResolvedValue(mockApiResponse({ message: 'File deleted', key: 'test.txt' }));
 
             const result = await mockBlobsApi.deleteBlob('test.txt', 'test-container');
 
             expect(mockBlobsApi.deleteBlob).toHaveBeenCalledWith('test.txt', 'test-container');
-            expect(result.payload).toBe('File deleted');
+            expect(result.payload).toEqual({ message: 'File deleted', key: 'test.txt' });
         });
 
         it('should delete multiple files', async () => {
             const filesToDelete = ['file1.txt', 'file2.txt', 'file3.txt'];
-            mockBlobsApi.deleteBlob.mockResolvedValue(mockApiResponse('File deleted'));
+            mockBlobsApi.deleteBlob.mockResolvedValue(mockApiResponse({ message: 'File deleted', key: 'file.txt' }));
 
             const results = await Promise.all(
                 filesToDelete.map(filename => mockBlobsApi.deleteBlob(filename, 'test-container'))
             );
 
             expect(mockBlobsApi.deleteBlob).toHaveBeenCalledTimes(3);
-            results.forEach((result: ApiResponse<string>) => {
-                expect(result.payload).toBe('File deleted');
+            results.forEach((result) => {
+                expect(result.payload).toEqual({ message: 'File deleted', key: 'file.txt' });
             });
         });
 
@@ -563,7 +563,7 @@ describe('Blobs Page Logic Tests', () => {
             );
 
             expect(mockBlobsApi.getBlob).toHaveBeenCalledTimes(2);
-            downloads.forEach((download: ApiResponse<string>) => {
+            downloads.forEach((download) => {
                 expect(download.payload).toBe('file content');
             });
         });
