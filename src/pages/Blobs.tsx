@@ -30,7 +30,7 @@ export const Blobs: FC = () => {
     };
 
     return (
-        <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column', p: 2 }}>
+        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Page Header */}
             <Box sx={{ mb: 2 }}>
                 <Typography variant="h4" component="h1" gutterBottom>
@@ -98,10 +98,10 @@ export const Blobs: FC = () => {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        bgcolor: 'grey.50',
+                        bgcolor: 'background.paper',
                         borderRadius: 1,
                         border: '2px dashed',
-                        borderColor: 'grey.300'
+                        borderColor: 'divider'
                     }}
                 >
                     <Typography variant="h6" color="text.secondary">

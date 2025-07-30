@@ -44,9 +44,11 @@ Każda funkcja serwerowa (np. w Netlify Functions) powinna:
 ## Development Environment Configuration
 
 ### Port i serwer developmentu
-- **Port**: Używaj portu `8000` dla wszystkich serwisów Netlify
-- **Serwer dev**: Używaj `netlify dev` do uruchomienia lokalnego środowiska
-- **Konfiguracja**: Frontend automatycznie wykrywa `localhost:8000` w trybie development
+**Port**: Używaj portu `8000` dla wszystkich serwisów Netlify
+**Netlify Dev**: `netlify dev` domyślnie używa portu 8000
+**Frontend**: Automatycznie wykrywa `localhost:8000` w trybie development
+**Testowanie**: Wszystkie testy aplikacji web uruchamiaj na porcie 8000
+**Nie używaj portów Vite ani domyślnych portów (5173)** – zawsze korzystaj z 8000
 
 ### Rozdzielenie requestów dla optymalizacji
 

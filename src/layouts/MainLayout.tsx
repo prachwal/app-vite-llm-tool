@@ -68,14 +68,9 @@ export const MainLayout: FC<PropsWithChildren> = ({ children }) => {
     }), [theme, currentPath]);
 
     return (
-        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-            <AppBar
-                position="fixed"
-                sx={appBarStyle}
-                elevation={0}
-                component="header"
-            >
-                <Toolbar sx={{ justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+            <AppBar position="sticky" sx={appBarStyle}>
+                <Toolbar>
                     <Typography
                         variant="h6"
                         component="h1"
@@ -112,14 +107,15 @@ export const MainLayout: FC<PropsWithChildren> = ({ children }) => {
                 </Toolbar>
             </AppBar>
 
-            <Toolbar component="div" /> {/* Spacer pod AppBar */}
             <Container
                 maxWidth="lg"
                 component="main"
                 sx={{
+                    flex: 1,
+                    display: 'flex',
+                    flexDirection: 'column',
                     py: { xs: 2, sm: 3, md: 4 },
                     px: { xs: 2, sm: 3 },
-                    flex: 1,
                 }}
             >
                 {children}

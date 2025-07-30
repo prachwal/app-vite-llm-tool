@@ -195,9 +195,11 @@ class BlobsApiService {
         store?: string
     ): Promise<ApiResponse<CreateBlobResponse>> {
         try {
-            // First get existing blob metadata and raw content
-            const metadataResponse = await this.getBlobMetadataWithRawUrl(key, store);
-            if (metadataResponse.status !== 200 || !metadataResponse.payload) {
+            // Get the blob content with existing metadata using GET_META
+            const getMetaUrl = `${this.baseUrl}?action=GET_META&key=${encodeURIComponent(key)}${store ? '&store=' + store : ''}`;
+            const getMetaResponse = await this.makeRequest<{ data: string; metadata: BlobMetadata; etag: string }>(getMetaUrl);
+
+            if (getMetaResponse.status !== 200 || !getMetaResponse.payload) {
                 return {
                     status: 404,
                     error: {
@@ -207,68 +209,30 @@ class BlobsApiService {
                 };
             }
 
-            const { metadata: existingMetadata, rawUrl } = metadataResponse.payload;
+            const { data: content, metadata: existingMetadata } = getMetaResponse.payload;
 
-            // Get the raw content - for base64 files, this will be the base64 content
-            // We need to get the original blob content, not the decoded binary
-            const contentResponse = await fetch(rawUrl.replace('&raw=true', ''));
-            if (!contentResponse.ok) {
-                return {
-                    status: 500,
-                    error: {
-                        message: 'Failed to fetch blob content',
-                        code: 'CONTENT_FETCH_ERROR'
-                    }
-                };
-            }
-
-            const responseData = await contentResponse.json();
-            if (responseData.status !== 200) {
-                return {
-                    status: 500,
-                    error: {
-                        message: 'Failed to get original blob content',
-                        code: 'CONTENT_ACCESS_ERROR'
-                    }
-                };
-            }
-
-            // Get the raw blob content using GET_META action to get original stored content
-            const getMetaUrl = `${this.baseUrl}?action=GET_META&key=${encodeURIComponent(key)}${store ? '&store=' + store : ''}`;
-            const getMetaResponse = await this.makeRequest<{ data: string; metadata: BlobMetadata }>(getMetaUrl);
-
-            if (getMetaResponse.status !== 200 || !getMetaResponse.payload) {
-                return {
-                    status: 500,
-                    error: {
-                        message: 'Failed to get blob content for update',
-                        code: 'CONTENT_RETRIEVAL_ERROR'
-                    }
-                };
-            }
-
-            const content = getMetaResponse.payload.data;
-
-            // Merge existing metadata with new metadata
+            // Merge existing metadata with new metadata, preserving system fields
             const mergedMetadata = {
                 ...existingMetadata,
                 ...metadata,
-                // Preserve some system fields
                 lastModified: new Date().toISOString(),
             };
 
             // Use PUT to update with same content but new metadata
-            const params = new URLSearchParams({ action: 'PUT', key });
+            const params = new URLSearchParams({ key });
             if (store) params.set('store', store);
             params.set('metadata', JSON.stringify(mergedMetadata));
 
             const url = `${this.baseUrl}?${params.toString()}`;
 
+            // Determine appropriate content type based on existing metadata
+            const contentType = existingMetadata.type || 'text/plain';
+
             return this.makeRequest<CreateBlobResponse>(url, {
                 method: 'PUT',
                 body: content,
                 headers: {
-                    'Content-Type': 'text/plain'
+                    'Content-Type': contentType
                 }
             });
         } catch (error) {

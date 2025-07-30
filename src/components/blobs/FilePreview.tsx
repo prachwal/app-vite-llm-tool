@@ -5,10 +5,14 @@ import {
     Alert,
     CircularProgress,
     Chip,
-    Card,
-    CardContent,
     Button,
-    IconButton
+    IconButton,
+    Dialog,
+    DialogContent,
+    DialogActions,
+    DialogTitle,
+    Snackbar,
+    Tooltip
 } from '@mui/material';
 import {
     Download,
@@ -20,12 +24,17 @@ import {
     Description,
     Visibility,
     VisibilityOff,
-    Info
+    Info,
+    Fullscreen,
+    FullscreenExit,
+    ContentCopy
 } from '@mui/icons-material';
 import { signal } from '@preact/signals';
 import { useEffect, useState } from 'preact/hooks';
 import type { FC } from 'preact/compat';
 import { blobsApi, type BlobItem } from '../../services/blobsService';
+import { MarkdownRenderer } from './MarkdownRenderer';
+import { CodeHighlighter } from './CodeHighlighter';
 import { MetadataEditor } from './MetadataEditor';
 
 export interface FilePreviewProps {
@@ -42,6 +51,8 @@ export const FilePreview: FC<FilePreviewProps> = ({ file, container }) => {
     const [error, setError] = useState<string | null>(null);
     const [showRawContent, setShowRawContent] = useState<boolean>(false);
     const [showMetadata, setShowMetadata] = useState<boolean>(false);
+    const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+    const [copySuccess, setCopySuccess] = useState<boolean>(false);
 
     // Handle metadata update
     const handleMetadataUpdated = (newMetadata: Record<string, any>) => {
@@ -112,32 +123,86 @@ export const FilePreview: FC<FilePreviewProps> = ({ file, container }) => {
         if (!file) return;
 
         try {
-            // Use direct fetch to avoid blob URL issues with router
-            const url = blobsApi.getBlobUrl(file.key, container, true);
-            const response = await fetch(url);
+            setError(null);
 
-            if (response.ok) {
-                const blob = await response.blob();
-                const downloadUrl = URL.createObjectURL(blob);
+            // Get the raw file URL
+            const response = await blobsApi.getBlobMetadataWithRawUrl(file.key, container);
 
-                // Create download link without affecting router history
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = file.key;
-                a.style.display = 'none';
+            if (response.status === 200 && response.payload?.rawUrl) {
+                const { rawUrl } = response.payload;
 
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                // For text files, fetch content and create downloadable blob
+                if (!isBinaryFile(file.key)) {
+                    const contentResponse = await fetch(rawUrl);
+                    if (contentResponse.ok) {
+                        const textContent = await contentResponse.text();
+                        const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+                        const downloadUrl = URL.createObjectURL(blob);
 
-                // Clean up blob URL
-                setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = file.key;
+                        a.style.display = 'none';
+
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+
+                        setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+                    } else {
+                        throw new Error('Failed to fetch file content');
+                    }
+                } else {
+                    // For binary files, use direct download
+                    const binaryResponse = await fetch(rawUrl);
+                    if (binaryResponse.ok) {
+                        const blob = await binaryResponse.blob();
+                        const downloadUrl = URL.createObjectURL(blob);
+
+                        const a = document.createElement('a');
+                        a.href = downloadUrl;
+                        a.download = file.key;
+                        a.style.display = 'none';
+
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+
+                        setTimeout(() => URL.revokeObjectURL(downloadUrl), 100);
+                    } else {
+                        throw new Error('Failed to download file');
+                    }
+                }
             } else {
-                setError('Download failed: ' + response.statusText);
+                throw new Error(response.error?.message || 'Failed to get file URL');
             }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Download failed');
         }
+    };
+
+    const handleCopyDirectLink = async () => {
+        if (!file) return;
+
+        try {
+            const response = await blobsApi.getBlobMetadataWithRawUrl(file.key, container);
+
+            if (response.status === 200 && response.payload?.rawUrl) {
+                const { rawUrl } = response.payload;
+                await navigator.clipboard.writeText(rawUrl);
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 3000);
+            } else {
+                setError('Failed to get file URL');
+            }
+        } catch (err) {
+            console.error('Failed to copy link:', err);
+            setError('Failed to copy link');
+        }
+    };
+
+    const toggleFullscreen = () => {
+        setIsFullscreen(!isFullscreen);
     };
 
     const getFileIcon = (fileName: string) => {
@@ -229,169 +294,183 @@ export const FilePreview: FC<FilePreviewProps> = ({ file, container }) => {
         if (!file || !fileContent.value) return null;
 
         const content = fileContent.value;
+        const fileName = file.key;
+        const extension = fileName.toLowerCase().split('.').pop() || '';
 
-        // Handle images
-        if (isImageFile(file.key)) {
-            // For images, content is a blob URL
+        // Handle images with improved styling
+        if (isImageFile(fileName)) {
             return (
-                <Box sx={{ textAlign: 'center', p: 2 }}>
-                    <img
+                <Box
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        minHeight: '200px',
+                        p: 2,
+                        bgcolor: 'background.default',
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'divider'
+                    }}
+                >
+                    <Box
+                        component="img"
                         src={content}
-                        alt={file.key}
-                        style={{
+                        alt={fileName}
+                        sx={{
                             maxWidth: '100%',
-                            maxHeight: '400px',
+                            maxHeight: isFullscreen ? '80vh' : '60vh',
                             objectFit: 'contain',
-                            border: '1px solid var(--mui-palette-divider)',
-                            borderRadius: '4px'
+                            border: '1px solid',
+                            borderColor: 'divider',
+                            borderRadius: 1,
+                            boxShadow: 1
                         }}
                     />
                 </Box>
             );
         }
 
-        // Handle audio files
-        if (isAudioFile(file.key)) {
+        // Handle audio files with improved styling
+        if (isAudioFile(fileName)) {
             return (
-                <Box sx={{ textAlign: 'center', p: 2 }}>
-                    <audio
+                <Box
+                    sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        p: 4,
+                        minHeight: '200px'
+                    }}
+                >
+                    <Typography variant="h6" sx={{ mb: 2, textAlign: 'center' }}>
+                        {fileName}
+                    </Typography>
+                    <Box
+                        component="audio"
                         controls
-                        style={{ width: '100%', maxWidth: '500px' }}
                         preload="metadata"
-                        aria-label={`Audio player for ${file.key}`}
+                        sx={{
+                            width: '100%',
+                            maxWidth: '500px',
+                            '& audio': {
+                                width: '100%'
+                            }
+                        }}
                     >
                         <source src={content} />
-                        <track kind="captions" src="" label="No captions available" />
                         Your browser does not support the audio element.
-                    </audio>
+                    </Box>
                 </Box>
             );
         }
 
-        // Handle video files
-        if (isVideoFile(file.key)) {
+        // Handle video files with improved styling
+        if (isVideoFile(fileName)) {
             return (
-                <Box sx={{ textAlign: 'center', p: 2 }}>
-                    <video
+                <Box
+                    sx={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        p: 2
+                    }}
+                >
+                    <Box
+                        component="video"
                         controls
-                        style={{
-                            width: '100%',
-                            maxWidth: '600px',
-                            maxHeight: '400px'
-                        }}
                         preload="metadata"
-                        aria-label={`Video player for ${file.key}`}
+                        sx={{
+                            width: '100%',
+                            maxWidth: '800px',
+                            maxHeight: isFullscreen ? '80vh' : '60vh',
+                            bgcolor: 'black',
+                            borderRadius: 1
+                        }}
                     >
                         <source src={content} />
-                        <track kind="captions" src="" label="No captions available" />
                         Your browser does not support the video element.
-                    </video>
+                    </Box>
                 </Box>
             );
         }
+
+        // Enhanced text content rendering
+        const containerStyles = {
+            fontFamily: 'monospace',
+            fontSize: '0.875rem',
+            whiteSpace: 'pre-wrap' as const,
+            wordBreak: 'break-word' as const,
+            height: isFullscreen ? 'calc(80vh - 100px)' : '60vh',
+            overflow: 'auto',
+            p: 2,
+            bgcolor: 'background.paper',
+            color: 'text.primary',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1
+        };
 
         // Show raw content if requested
         if (showRawContent) {
             return (
-                <Box
-                    component="pre"
-                    sx={{
-                        fontFamily: 'monospace',
-                        fontSize: '0.875rem',
-                        whiteSpace: 'pre-wrap',
-                        wordBreak: 'break-word',
-                        maxHeight: '400px',
-                        overflow: 'auto',
-                        p: 2,
-                        bgcolor: 'background.default',
-                        color: 'text.primary',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 1
-                    }}
-                >
+                <Box component="pre" sx={containerStyles}>
                     {content}
                 </Box>
             );
         }
 
-        // Format content based on file extension
-        const extension = file.key.toLowerCase().split('.').pop() || '';
+        // Enhanced Markdown rendering
+        if (extension === 'md' || extension === 'markdown') {
+            return (
+                <MarkdownRenderer
+                    content={content}
+                    isFullscreen={isFullscreen}
+                />
+            );
+        }
 
-        // JSON formatting
+        // Enhanced code formatting with syntax highlighting
+        if (['js', 'ts', 'jsx', 'tsx', 'py', 'python', 'css', 'html', 'xml', 'yaml', 'yml', 'json', 'sh', 'bash', 'sql', 'php', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'rb', 'swift', 'kt', 'dart', 'r'].includes(extension)) {
+            return (
+                <CodeHighlighter
+                    code={content}
+                    language={extension}
+                    isFullscreen={isFullscreen}
+                />
+            );
+        }
+
+        // Enhanced formatting for JSON files (if not handled by CodeHighlighter)
         if (extension === 'json') {
             try {
                 const formatted = JSON.stringify(JSON.parse(content), null, 2);
                 return (
-                    <Box
-                        component="pre"
-                        sx={{
-                            fontFamily: 'monospace',
-                            fontSize: '0.875rem',
-                            whiteSpace: 'pre-wrap',
-                            maxHeight: '400px',
-                            overflow: 'auto',
-                            p: 2,
-                            bgcolor: 'background.paper',
-                            color: 'text.primary',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            borderRadius: 1
-                        }}
-                    >
-                        {formatted}
-                    </Box>
+                    <CodeHighlighter
+                        code={formatted}
+                        language="json"
+                        isFullscreen={isFullscreen}
+                    />
                 );
             } catch {
                 // If JSON parsing fails, fall through to default
             }
         }
 
-        // Code formatting for JS, CSS, HTML
-        if (['js', 'ts', 'jsx', 'tsx', 'css', 'html'].includes(extension)) {
-            return (
-                <Box
-                    component="pre"
-                    sx={{
-                        fontFamily: 'monospace',
-                        fontSize: '0.875rem',
-                        whiteSpace: 'pre-wrap',
-                        maxHeight: '400px',
-                        overflow: 'auto',
-                        p: 2,
-                        bgcolor: 'background.paper',
-                        color: 'text.primary',
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderRadius: 1
-                    }}
-                >
-                    {content}
-                </Box>
-            );
-        }
-
-        // Default text rendering
+        // Default text rendering with better styling
         return (
-            <Typography
+            <Box
                 component="pre"
                 sx={{
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-word',
-                    maxHeight: '400px',
-                    overflow: 'auto',
-                    p: 2,
-                    bgcolor: 'background.paper',
-                    color: 'text.primary',
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    borderRadius: 1,
-                    fontFamily: 'monospace',
-                    fontSize: '0.875rem'
+                    ...containerStyles,
+                    fontFamily: extension === 'txt' ? 'inherit' : 'monospace',
+                    fontSize: extension === 'txt' ? '0.95rem' : '0.875rem'
                 }}
             >
                 {content}
-            </Typography>
+            </Box>
         );
     };
 
@@ -406,163 +485,231 @@ export const FilePreview: FC<FilePreviewProps> = ({ file, container }) => {
     }
 
     return (
-        <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            {/* Header */}
-            <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {getFileIcon(file.key)}
-                        <Typography variant="h6" noWrap>
-                            {file.key}
-                        </Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <IconButton
-                            onClick={() => setShowRawContent(!showRawContent)}
-                            size="small"
-                            title={showRawContent ? 'Show formatted' : 'Show raw'}
-                        >
-                            {showRawContent ? <Visibility /> : <VisibilityOff />}
-                        </IconButton>
-                        <IconButton
-                            onClick={() => setShowMetadata(!showMetadata)}
-                            size="small"
-                            title={showMetadata ? 'Hide metadata' : 'Show metadata'}
-                            color={showMetadata ? 'primary' : 'default'}
-                        >
-                            <Info />
-                        </IconButton>
-                        <Button
-                            startIcon={<Download />}
-                            variant="outlined"
-                            size="small"
-                            onClick={handleDownload}
-                        >
-                            Download
-                        </Button>
-                        <IconButton
-                            onClick={handleRefresh}
-                            disabled={isLoadingContent.value}
-                            size="small"
-                        >
-                            <Refresh />
-                        </IconButton>
-                    </Box>
-                </Box>
-
-                {/* File metadata */}
-                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                    <Chip
-                        label={getFileType(file).toUpperCase()}
-                        size="small"
-                        variant="outlined"
-                    />
-                    {file.size && (
-                        <Chip label={formatFileSize(file.size)} size="small" />
-                    )}
-                    {file.modified && (
-                        <Typography variant="caption" color="text.secondary">
-                            Modified: {formatDate(file.modified)}
-                        </Typography>
-                    )}
-                </Box>
-            </Box>
-
-            {/* Error Alert */}
-            {error && (
-                <Alert severity="error" onClose={() => setError(null)} sx={{ m: 2 }}>
-                    {error}
-                </Alert>
-            )}
-
-            {/* Metadata Section */}
-            {showMetadata && fileMetadata.value && (
-                <Box sx={{ p: 2, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="subtitle2">
-                            File Metadata
-                        </Typography>
-                        {file && (
-                            <MetadataEditor
-                                fileKey={file.key}
-                                container={container}
-                                metadata={fileMetadata.value}
-                                onMetadataUpdated={handleMetadataUpdated}
-                            />
-                        )}
-                    </Box>
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 1, fontSize: '0.875rem' }}>
-                        {fileMetadata.value.type && (
-                            <>
-                                <Typography variant="body2" fontWeight="medium">Content Type:</Typography>
-                                <Typography variant="body2" color="text.secondary">{fileMetadata.value.type}</Typography>
-                            </>
-                        )}
-                        {fileMetadata.value.originalName && (
-                            <>
-                                <Typography variant="body2" fontWeight="medium">Original Name:</Typography>
-                                <Typography variant="body2" color="text.secondary">{fileMetadata.value.originalName}</Typography>
-                            </>
-                        )}
-                        {fileMetadata.value.size && (
-                            <>
-                                <Typography variant="body2" fontWeight="medium">File Size:</Typography>
-                                <Typography variant="body2" color="text.secondary">{formatFileSize(fileMetadata.value.size)}</Typography>
-                            </>
-                        )}
-                        {fileMetadata.value.lastModified && (
-                            <>
-                                <Typography variant="body2" fontWeight="medium">Last Modified:</Typography>
-                                <Typography variant="body2" color="text.secondary">{formatDate(fileMetadata.value.lastModified)}</Typography>
-                            </>
-                        )}
-                        {Object.keys(fileMetadata.value).filter(key =>
-                            !['type', 'originalName', 'size', 'lastModified'].includes(key)
-                        ).map(key => (
-                            <Box key={key} sx={{ display: 'contents' }}>
-                                <Typography variant="body2" fontWeight="medium">{key}:</Typography>
-                                <Typography variant="body2" color="text.secondary">
-                                    {typeof fileMetadata.value[key] === 'object'
-                                        ? JSON.stringify(fileMetadata.value[key])
-                                        : String(fileMetadata.value[key])
-                                    }
-                                </Typography>
-                            </Box>
-                        ))}
-                    </Box>
-                </Box>
-            )}
-
-            {/* Content */}
-            <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-                {(() => {
-                    if (isLoadingContent.value) {
-                        return (
-                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                                <CircularProgress />
-                            </Box>
-                        );
-                    }
-
-                    if (fileContent.value) {
-                        return (
-                            <Card variant="outlined">
-                                <CardContent>
-                                    {renderFileContent()}
-                                </CardContent>
-                            </Card>
-                        );
-                    }
-
-                    return (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
-                            <Typography variant="body2" color="text.secondary">
-                                No content available
+        <>
+            <Paper sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                {/* Header */}
+                <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {getFileIcon(file.key)}
+                            <Typography variant="h6" noWrap>
+                                {file.key}
                             </Typography>
                         </Box>
-                    );
-                })()}
-            </Box>
-        </Paper>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
+                            <Tooltip title={showRawContent ? 'Show formatted' : 'Show raw'}>
+                                <IconButton
+                                    onClick={() => setShowRawContent(!showRawContent)}
+                                    size="small"
+                                    color={showRawContent ? 'primary' : 'default'}
+                                >
+                                    {showRawContent ? <Visibility /> : <VisibilityOff />}
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen view'}>
+                                <IconButton
+                                    onClick={toggleFullscreen}
+                                    size="small"
+                                    color={isFullscreen ? 'primary' : 'default'}
+                                >
+                                    {isFullscreen ? <FullscreenExit /> : <Fullscreen />}
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Copy direct link">
+                                <IconButton
+                                    onClick={handleCopyDirectLink}
+                                    size="small"
+                                >
+                                    <ContentCopy />
+                                </IconButton>
+                            </Tooltip>
+                            <Tooltip title={showMetadata ? 'Hide metadata' : 'Show metadata'}>
+                                <IconButton
+                                    onClick={() => setShowMetadata(!showMetadata)}
+                                    size="small"
+                                    color={showMetadata ? 'primary' : 'default'}
+                                >
+                                    <Info />
+                                </IconButton>
+                            </Tooltip>
+                            <Button
+                                startIcon={<Download />}
+                                variant="outlined"
+                                size="small"
+                                onClick={handleDownload}
+                            >
+                                Download
+                            </Button>
+                            <IconButton
+                                onClick={handleRefresh}
+                                disabled={isLoadingContent.value}
+                                size="small"
+                            >
+                                <Refresh />
+                            </IconButton>
+                        </Box>
+                    </Box>
+
+                    {/* File metadata */}
+                    <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <Chip
+                            label={getFileType(file).toUpperCase()}
+                            size="small"
+                            variant="outlined"
+                        />
+                        {file.size && (
+                            <Chip label={formatFileSize(file.size)} size="small" />
+                        )}
+                        {file.modified && (
+                            <Typography variant="caption" color="text.secondary">
+                                Modified: {formatDate(file.modified)}
+                            </Typography>
+                        )}
+                    </Box>
+                </Box>
+
+                {/* Error Alert */}
+                {error && (
+                    <Alert severity="error" onClose={() => setError(null)} sx={{ m: 2 }}>
+                        {error}
+                    </Alert>
+                )}
+
+                {/* Metadata Section */}
+                {showMetadata && fileMetadata.value && (
+                    <Box sx={{ p: 2, bgcolor: 'background.paper', borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                            <Typography variant="subtitle2">
+                                File Metadata
+                            </Typography>
+                            {file && (
+                                <MetadataEditor
+                                    fileKey={file.key}
+                                    container={container}
+                                    metadata={fileMetadata.value}
+                                    onMetadataUpdated={handleMetadataUpdated}
+                                />
+                            )}
+                        </Box>
+                        <Box sx={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 1, fontSize: '0.875rem' }}>
+                            {fileMetadata.value.type && (
+                                <>
+                                    <Typography variant="body2" fontWeight="medium">Content Type:</Typography>
+                                    <Typography variant="body2" color="text.secondary">{fileMetadata.value.type}</Typography>
+                                </>
+                            )}
+                            {fileMetadata.value.originalName && (
+                                <>
+                                    <Typography variant="body2" fontWeight="medium">Original Name:</Typography>
+                                    <Typography variant="body2" color="text.secondary">{fileMetadata.value.originalName}</Typography>
+                                </>
+                            )}
+                            {fileMetadata.value.size && (
+                                <>
+                                    <Typography variant="body2" fontWeight="medium">File Size:</Typography>
+                                    <Typography variant="body2" color="text.secondary">{formatFileSize(fileMetadata.value.size)}</Typography>
+                                </>
+                            )}
+                            {fileMetadata.value.lastModified && (
+                                <>
+                                    <Typography variant="body2" fontWeight="medium">Last Modified:</Typography>
+                                    <Typography variant="body2" color="text.secondary">{formatDate(fileMetadata.value.lastModified)}</Typography>
+                                </>
+                            )}
+                            {Object.keys(fileMetadata.value).filter(key =>
+                                !['type', 'originalName', 'size', 'lastModified'].includes(key)
+                            ).map(key => (
+                                <Box key={key} sx={{ display: 'contents' }}>
+                                    <Typography variant="body2" fontWeight="medium">{key}:</Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        {typeof fileMetadata.value[key] === 'object'
+                                            ? JSON.stringify(fileMetadata.value[key])
+                                            : String(fileMetadata.value[key])
+                                        }
+                                    </Typography>
+                                </Box>
+                            ))}
+                        </Box>
+                    </Box>
+                )}
+
+                {/* Content - improved to fill available space */}
+                <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                    {(() => {
+                        if (isLoadingContent.value) {
+                            return (
+                                <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                    <CircularProgress />
+                                </Box>
+                            );
+                        }
+
+                        if (fileContent.value) {
+                            return (
+                                <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+                                    {renderFileContent()}
+                                </Box>
+                            );
+                        }
+
+                        return (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    No content available
+                                </Typography>
+                            </Box>
+                        );
+                    })()}
+                </Box>
+            </Paper>
+
+            {/* Fullscreen Modal */}
+            <Dialog
+                open={isFullscreen}
+                onClose={toggleFullscreen}
+                maxWidth={false}
+                fullWidth
+                sx={{
+                    '& .MuiDialog-paper': {
+                        width: '95vw',
+                        height: '95vh',
+                        maxWidth: 'none',
+                        maxHeight: 'none',
+                        m: 0
+                    }
+                }}
+            >
+                <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6">{file.key}</Typography>
+                    <IconButton onClick={toggleFullscreen}>
+                        <FullscreenExit />
+                    </IconButton>
+                </DialogTitle>
+                <DialogContent sx={{ flex: 1, overflow: 'auto', p: 0 }}>
+                    <Box sx={{ height: '100%', p: 2 }}>
+                        {renderFileContent()}
+                    </Box>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleDownload} startIcon={<Download />}>
+                        Download
+                    </Button>
+                    <Button onClick={handleCopyDirectLink} startIcon={<ContentCopy />}>
+                        Copy Link
+                    </Button>
+                    <Button onClick={toggleFullscreen}>
+                        Close
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Success Snackbar */}
+            <Snackbar
+                open={copySuccess}
+                autoHideDuration={3000}
+                onClose={() => setCopySuccess(false)}
+                message="Direct link copied to clipboard!"
+            />
+        </>
     );
 };
