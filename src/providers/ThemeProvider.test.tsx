@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { themeMode, setThemeMode } from './ThemeProvider';
 
+const STORAGE_KEY = 'app-vite-llm-tool-settings';
+
 describe('ThemeProvider Logic', () => {
     beforeEach(() => {
         // Ensure localStorage exists and is clear
@@ -16,13 +18,27 @@ describe('ThemeProvider Logic', () => {
 
     it('should persist themeMode in localStorage', () => {
         setThemeMode('dark');
-        expect(localStorage.getItem('themeMode')).toBe('dark');
+        expect(themeMode.value).toBe('dark');
+        
+        // Check if settings are saved properly in localStorage
+        const storedSettings = localStorage.getItem(STORAGE_KEY);
+        expect(storedSettings).toBeTruthy();
+        const parsedSettings = JSON.parse(storedSettings!);
+        expect(parsedSettings.theme.mode).toBe('dark');
 
         setThemeMode('light');
-        expect(localStorage.getItem('themeMode')).toBe('light');
+        expect(themeMode.value).toBe('light');
+        
+        const storedSettings2 = localStorage.getItem(STORAGE_KEY);
+        const parsedSettings2 = JSON.parse(storedSettings2!);
+        expect(parsedSettings2.theme.mode).toBe('light');
 
         setThemeMode('system');
-        expect(localStorage.getItem('themeMode')).toBe('system');
+        expect(themeMode.value).toBe('system');
+        
+        const storedSettings3 = localStorage.getItem(STORAGE_KEY);
+        const parsedSettings3 = JSON.parse(storedSettings3!);
+        expect(parsedSettings3.theme.mode).toBe('system');
     });
 
     it('should update themeMode signal when setThemeMode is called', () => {
@@ -61,9 +77,12 @@ describe('ThemeProvider Logic', () => {
             setThemeMode(mode as any);
             expect(themeMode.value).toBe(mode);
 
-            // Only check localStorage if it exists
+            // Check if the mode is saved in the settings object
             if (typeof localStorage !== 'undefined') {
-                expect(localStorage.getItem('themeMode')).toBe(mode);
+                const storedSettings = localStorage.getItem(STORAGE_KEY);
+                expect(storedSettings).toBeTruthy();
+                const parsedSettings = JSON.parse(storedSettings!);
+                expect(parsedSettings.theme.mode).toBe(mode);
             }
         });
     });

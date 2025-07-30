@@ -14,6 +14,7 @@ const NAV_LINKS: NavLink[] = [
     { label: 'Home', href: '/', ariaLabel: 'Przejdź do strony głównej' },
     { label: 'About', href: '/about', ariaLabel: 'Przejdź do strony o nas' },
     { label: 'Settings', href: '/settings', ariaLabel: 'Przejdź do ustawień' },
+    { label: 'Blobs', href: '/blobs', ariaLabel: 'Zarządzaj plikami w Netlify Blobs' },
 ] as const;
 
 /**

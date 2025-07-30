@@ -11,5 +11,16 @@ export interface ApiResponse<T = unknown> {
 }
 
 export function apiResponse<T>(payload?: T, status: number = 200, error?: { message: string; code: string | number; details?: string; } | null, metadata?: Record<string, unknown>) {
-    return Response.json({ status, payload, error: error ?? null, metadata: metadata ?? {} }, { status });
+    return Response.json(
+        { status, payload, error: error ?? null, metadata: metadata ?? {} },
+        {
+            status,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+                'Access-Control-Max-Age': '86400'
+            }
+        }
+    );
 }

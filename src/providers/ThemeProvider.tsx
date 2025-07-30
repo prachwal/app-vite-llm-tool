@@ -1,32 +1,23 @@
 import { ThemeProvider as MuiThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import { signal } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
+import { computed } from '@preact/signals';
 import type { FC, PropsWithChildren } from 'preact/compat';
+import { appSettings, updateThemeSettings } from '../services/settingsService';
 
-// Sygnał globalny dla trybu motywu
+// Re-export ThemeMode type
 export type ThemeMode = 'light' | 'dark' | 'system';
-export const themeMode = signal<ThemeMode>(getInitialMode());
 
-function getInitialMode(): ThemeMode {
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('themeMode') : null;
-    if (stored === 'dark' || stored === 'light' || stored === 'system') return stored as ThemeMode;
-    // domyślnie wg preferencji systemu
-    return 'system';
-}
+// Sygnał globalny dla trybu motywu - teraz synchronizowany z appSettings
+export const themeMode = computed(() => appSettings.value.theme.mode);
 
 export function setThemeMode(mode: ThemeMode) {
-    themeMode.value = mode;
-    if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-        localStorage.setItem('themeMode', mode);
-    }
+    updateThemeSettings({ mode });
 }
 
+// Typography settings signals
+export const typographySettings = computed(() => appSettings.value.typography);
+
 export const ThemeProvider: FC<PropsWithChildren> = ({ children }) => {
-    useEffect(() => {
-        if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('themeMode', themeMode.value);
-        }
-    }, [themeMode.value]);
+    // No longer need useEffect for localStorage - handled by settingsService
 
     // Jeśli 'system', wykryj preferencje systemowe
     let muiMode: 'light' | 'dark' = themeMode.value === 'dark' ? 'dark' : 'light';
@@ -44,6 +35,11 @@ export const ThemeProvider: FC<PropsWithChildren> = ({ children }) => {
             primary: { main: '#1976d2' },
             secondary: { main: '#9c27b0' },
         },
+        typography: {
+            fontSize: typographySettings.value.fontSize,
+            // Apply spacing scale to theme spacing
+        },
+        spacing: (factor: number) => `${typographySettings.value.spacingScale * factor * 8}px`,
     });
 
     return (
